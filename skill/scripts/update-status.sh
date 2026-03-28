@@ -26,9 +26,12 @@ for change_dir in "$CHANGES_DIR"/*/; do
   change_name=$(basename "$change_dir")
 
   if [ -f "$change_dir/tasks.md" ]; then
-    total=$(grep -c '^\- \[' "$change_dir/tasks.md" 2>/dev/null || echo 0)
-    done=$(grep -c '^\- \[x\]' "$change_dir/tasks.md" 2>/dev/null || echo 0)
-    failed=$(grep -c '^\- \[!\]' "$change_dir/tasks.md" 2>/dev/null || echo 0)
+    total=$(grep -c '^\- \[' "$change_dir/tasks.md" 2>/dev/null || true)
+    done=$(grep -c '^\- \[x\]' "$change_dir/tasks.md" 2>/dev/null || true)
+    failed=$(grep -c '^\- \[!\]' "$change_dir/tasks.md" 2>/dev/null || true)
+    total=${total:-0}
+    done=${done:-0}
+    failed=${failed:-0}
 
     if [ "$total" -gt 0 ]; then
       pct=$((done * 100 / total))
