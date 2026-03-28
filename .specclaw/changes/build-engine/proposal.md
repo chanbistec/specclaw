@@ -1,7 +1,7 @@
 # Proposal: Build Engine — Core Orchestration
 
 **Created:** 2026-03-28
-**Status:** 🟡 Draft
+**Status:** 🟢 Approved
 
 ## Problem
 

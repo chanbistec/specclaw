@@ -1,17 +1,15 @@
 # 🦞 SpecClaw Dashboard
 
 **Project:** specclaw
-**Last Updated:** 2026-03-28 11:58 UTC
+**Last Updated:** 2026-03-28 12:02 UTC
 
 ## Active Changes
 
-| Change | Phase | Progress | Updated |
-|--------|-------|----------|---------|
-| `build-engine` | 🟡 Proposal | Awaiting review | 2026-03-28 |
+_No active changes._
 
 ## Pending Proposals
 
-- **build-engine** — Core orchestration: task parser, agent spawning, wave execution, git integration
+_None._
 
 ## Recently Completed
 
@@ -19,6 +17,6 @@ _None._
 
 ## Stats
 
-- **Total changes:** 1
-- **Active:** 1
+- **Total changes:** 0
+- **Active:** 0
 - **Completed:** 0
