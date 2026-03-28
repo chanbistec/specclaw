@@ -88,6 +88,10 @@ bash skill/scripts/build.sh setup .specclaw <change_name>
 
 This returns JSON config including `parallel_tasks`, `models.coding`, `git.strategy`, and `notifications.channel`. Capture this output — you'll need `parallel_tasks` and `model` values throughout the build.
 
+**Worktree strategy:** When `git.strategy` is `"worktree-per-change"`, setup creates an isolated worktree at `.specclaw/worktrees/<change>/`. The `worktree_path` from the config JSON should be used as the `cwd` parameter when spawning coding agents via `sessions_spawn`, ensuring each change's agents work in complete isolation.
+
+**Parallel changes:** With `worktree-per-change` strategy, multiple changes can be built simultaneously since each has its own worktree. No branch switching required.
+
 Send a **build started** notification:
 
 ```
@@ -522,7 +526,7 @@ Key settings:
 - `models.planning` — model for proposals, specs, design (default: opus)
 - `models.coding` — model for implementation (default: codex)
 - `models.review` — model for verification (default: sonnet)
-- `git.strategy` — "branch-per-change" or "direct"
+- `git.strategy` — "branch-per-change", "direct", or "worktree-per-change"
 - `notifications.channel` — where to send updates
 - `automation.max_tasks_per_run` — limit for auto mode
 
