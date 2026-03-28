@@ -218,7 +218,49 @@ bash skill/scripts/build.sh finalize .specclaw <change_name>
 
 This runs the configured `test_command` (if any) and merges the branch per `git.strategy`.
 
-#### Step 5 — Update Dashboard
+#### Step 5 — Post-Build Review
+
+If `automation.post_build_review` is `true` in config, run an automated review before updating the dashboard:
+
+**a. Scope deviation check:**
+
+Compare files actually changed against files declared in tasks:
+
+```bash
+# Get files changed since pre-build commit (branch point)
+git diff --name-only main...HEAD
+```
+
+Cross-reference with files listed in each task in `tasks.md`. Flag any files changed but not declared in any task's `Files:` field.
+
+**b. Review prompt:**
+
+Evaluate the build and auto-log findings (~150 words max):
+
+```
+🦞 Post-Build Review — <change-name>
+Results: X/Y tasks passed, Z failed
+
+Evaluate:
+1. Were any spec requirements ambiguous or incomplete?
+2. Did the design need adjustment during implementation?
+3. Were any files modified outside declared task scope?
+4. Did any agents struggle with context or instructions?
+5. Any reusable patterns discovered?
+
+For each finding, log with:
+  bash skill/scripts/log-learning.sh .specclaw <change> <category> <priority> "<detail>" "<action>"
+```
+
+**c. Auto-log scope deviations:**
+
+For any files changed outside declared task scope, automatically log as `design_gap`:
+
+```bash
+bash skill/scripts/log-learning.sh .specclaw <change> design_gap medium "File <path> modified but not declared in any task" "Review task file declarations for completeness"
+```
+
+#### Step 6 — Update Dashboard
 
 Regenerate the project status dashboard:
 
@@ -226,7 +268,7 @@ Regenerate the project status dashboard:
 bash skill/scripts/update-status.sh .specclaw
 ```
 
-#### Step 6 — Notify
+#### Step 7 — Notify
 
 Send the **build summary** via the `message` tool to the configured notification channel:
 
