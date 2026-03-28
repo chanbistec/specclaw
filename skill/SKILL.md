@@ -30,7 +30,8 @@ When initialized (`.specclaw/` exists in project root):
     │   ├── design.md    # Technical approach + file map
     │   ├── tasks.md     # Ordered tasks with status markers
     │   ├── status.md    # Progress tracking
-    │   └── errors.md    # Build error journal (auto-generated on failures)
+    │   ├── errors.md    # Build error journal (auto-generated on failures)
+    │   └── learnings.md # Build learnings (spec gaps, patterns, insights)
     └── archive/         # Completed changes
 ```
 
@@ -262,6 +263,38 @@ When `specclaw build` is called on a change that has failed tasks:
 - **Parallel within waves** — tasks in the same wave with no cross-dependencies spawn simultaneously, up to `parallel_tasks` limit.
 - **Sequential across waves** — wave N+1 starts only after wave N completes.
 - **Fail-fast on dependencies** — if a task fails, all tasks depending on it are immediately marked failed.
+
+### `specclaw learn <change> "<insight>"`
+**Trigger:** "specclaw learn", "log a learning", "what did we learn", "capture insight"
+
+Capture build learnings — spec gaps, design misses, and patterns discovered during implementation.
+
+**Log a learning:**
+```bash
+bash skill/scripts/log-learning.sh .specclaw <change> <category> <priority> "<detail>" ["<action>"]
+```
+
+Categories: `spec_gap` | `design_gap` | `pattern` | `best_practice` | `agent_issue`
+Priorities: `low` | `medium` | `high`
+
+**List learnings for a change:**
+```bash
+bash skill/scripts/log-learning.sh .specclaw <change> --list
+```
+
+**Promote a learning** (mark for elevation to agent prompts/SKILL.md):
+```bash
+bash skill/scripts/log-learning.sh .specclaw <change> --promote <id>
+```
+
+**When to log:**
+- After a build reveals a spec gap (requirements were unclear or missing)
+- When a design decision needed mid-build adjustment
+- When agents discovered a useful pattern worth reusing
+- When parallel tasks created conflicts (duplicate code, shared dependencies)
+- When an agent struggled with the context or instructions
+
+Learnings are stored in `.specclaw/changes/<change>/learnings.md` and feed into the pattern detection system for cross-change analysis.
 
 ### `specclaw verify <change>`
 **Trigger:** "specclaw verify", "validate implementation", "check against spec"
