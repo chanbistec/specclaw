@@ -1,7 +1,7 @@
 # 🦞 SpecClaw Dashboard
 
 **Project:** specclaw
-**Last Updated:** 2026-03-28 15:10 UTC
+**Last Updated:** 2026-03-28 15:18 UTC
 
 ## Active Changes
 
@@ -12,6 +12,7 @@
 - ✅ **git-worktrees** — 3/3 tasks (100%) | 0 failed
 - ✅ **learn-command** — 2/2 tasks (100%) | 0 failed
 - ✅ **pattern-detection** — 3/3 tasks (100%) | 0 failed
+- ✅ **phase-validation** — 2/2 tasks (100%) | 0 failed
 - ✅ **post-build-review** — 1/1 tasks (100%) | 0 failed
 - ✅ **verification-engine** — 4/4 tasks (100%) | 0 failed
 
@@ -25,6 +26,6 @@ _None._
 
 ## Stats
 
-- **Total changes:** 8
-- **Active:** 8
+- **Total changes:** 9
+- **Active:** 9
 - **Completed:** 0
