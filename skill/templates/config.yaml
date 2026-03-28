@@ -37,6 +37,14 @@ notifications:
   on_failure: true
   on_approval_needed: true
 
+# GitHub Issues integration (optional)
+# When enabled, syncs proposals as GitHub Issues with task checklists
+github:
+  sync: false                    # Enable GitHub Issues sync
+  repo: ""                       # owner/repo (auto-detected from git remote if empty)
+  token: ""                      # GitHub PAT for curl fallback (not needed if gh CLI is authed)
+  label: "specclaw"              # Label applied to SpecClaw issues
+
 # Automation
 automation:
   auto_mode: false
