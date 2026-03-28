@@ -5,7 +5,7 @@ version: 1
 project:
   name: "specclaw"
   description: "Spec-driven development framework for OpenClaw agents"
-  repo: "git@github.com:chanbistec/specclaw"
+  repo: "chanbistec/specclaw"
 
 # Model routing — use the best model for each phase
 models:
@@ -36,6 +36,13 @@ notifications:
   on_complete: true
   on_failure: true
   on_approval_needed: true
+
+# GitHub Issues integration
+github:
+  sync: true
+  repo: "chanbistec/specclaw"
+  token: ""
+  label: "specclaw"
 
 # Automation
 automation:
