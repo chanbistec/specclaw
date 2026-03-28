@@ -351,35 +351,43 @@ build_task_checklist() {
   [[ -f "$tasks_file" ]] || { echo "Planning pending"; return; }
 
   while IFS= read -r line; do
-    # Detect wave headers: ## Wave N ...
-    if [[ "$line" =~ ^##[[:space:]]+Wave[[:space:]]+([0-9]+) ]]; then
+    # Detect wave headers: ### Wave N ...
+    if [[ "$line" =~ ^###?[[:space:]]+Wave[[:space:]]+([0-9]+) ]]; then
       current_wave="${BASH_REMATCH[1]}"
       continue
     fi
 
-    # Detect task lines: - **T<N>** — <title>
-    # Format variations: - **T1** — Title | - **T1**: Title
-    if [[ "$line" =~ ^-[[:space:]]+\*\*([Tt][0-9]+)\*\*[[:space:]]*[—:–-][[:space:]]*(.*) ]]; then
-      local task_id="${BASH_REMATCH[1]}"
-      local task_title="${BASH_REMATCH[2]}"
+    # Detect task lines in SpecClaw format: - [x] `T1` — Title
+    # Also support: - **T1** — Title
+    local task_id="" task_title="" task_status=""
+
+    if [[ "$line" =~ ^-[[:space:]]+\[(.)\][[:space:]]+\`([Tt][0-9]+)\`[[:space:]]*[—–-][[:space:]]*(.*) ]]; then
+      local marker="${BASH_REMATCH[1]}"
+      task_id="${BASH_REMATCH[2]}"
+      task_title="${BASH_REMATCH[3]}"
+      case "$marker" in
+        x) task_status="complete" ;;
+        '~') task_status="in_progress" ;;
+        '!') task_status="failed" ;;
+        *) task_status="pending" ;;
+      esac
+    elif [[ "$line" =~ ^-[[:space:]]+\*\*([Tt][0-9]+)\*\*[[:space:]]*[—:–-][[:space:]]*(.*) ]]; then
+      task_id="${BASH_REMATCH[1]}"
+      task_title="${BASH_REMATCH[2]}"
+      task_status="pending"
+    fi
+
+    if [[ -n "$task_id" ]]; then
       local wave_suffix=""
       [[ -n "$current_wave" ]] && wave_suffix=" (Wave $current_wave)"
 
-      # Extract status if present: `status: complete` or similar in following context
-      # For the checklist, we look for status markers
       local checkbox="[ ]"
       local suffix=""
 
       if [[ "$include_status" == "true" ]]; then
-        # Look for status in the line itself or trailing info
-        # Parse status from tasks.md format: ... `status: <status>`
-        local status_match=""
-        if [[ "$line" =~ status:[[:space:]]*(pending|in_progress|complete|failed) ]]; then
-          status_match="${BASH_REMATCH[1]}"
-        fi
-        if [[ "$status_match" == "complete" ]]; then
+        if [[ "$task_status" == "complete" ]]; then
           checkbox="[x]"
-        elif [[ "$status_match" == "failed" ]]; then
+        elif [[ "$task_status" == "failed" ]]; then
           suffix=" ⚠️"
         fi
       fi
@@ -405,26 +413,17 @@ count_task_statuses() {
 
   [[ -f "$tasks_file" ]] || { echo "0 0"; return; }
 
-  # Parse tasks from tasks.md
+  # Parse tasks from tasks.md — support both `- [x] \`T1\`` and `- **T1**` formats
   while IFS= read -r line; do
-    if [[ "$line" =~ ^-[[:space:]]+\*\*[Tt][0-9]+\*\* ]]; then
+    if [[ "$line" =~ ^-[[:space:]]+\[.\][[:space:]]+\`[Tt][0-9]+\` ]]; then
       ((total++)) || true
-      if [[ "$line" =~ status:[[:space:]]*complete ]]; then
+      if [[ "$line" =~ ^-[[:space:]]+\[x\] ]]; then
         ((complete++)) || true
       fi
+    elif [[ "$line" =~ ^-[[:space:]]+\*\*[Tt][0-9]+\*\* ]]; then
+      ((total++)) || true
     fi
   done < "$tasks_file"
-
-  # Also check status.md for task completion markers
-  if [[ -f "$status_file" ]]; then
-    while IFS= read -r line; do
-      if [[ "$line" =~ ^-[[:space:]]+\*\*([Tt][0-9]+)\*\*.*✅ ]] || \
-         [[ "$line" =~ ^-[[:space:]]+\*\*([Tt][0-9]+)\*\*.*complete ]]; then
-        # Already counted from tasks.md if status is there
-        :
-      fi
-    done < "$status_file"
-  fi
 
   echo "$total $complete"
 }
@@ -459,14 +458,32 @@ build_updated_checklist() {
   fi
 
   while IFS= read -r line; do
-    if [[ "$line" =~ ^##[[:space:]]+Wave[[:space:]]+([0-9]+) ]]; then
+    if [[ "$line" =~ ^###?[[:space:]]+Wave[[:space:]]+([0-9]+) ]]; then
       current_wave="${BASH_REMATCH[1]}"
       continue
     fi
 
-    if [[ "$line" =~ ^-[[:space:]]+\*\*([Tt][0-9]+)\*\*[[:space:]]*[—:–-][[:space:]]*(.*) ]]; then
-      local task_id="${BASH_REMATCH[1]^^}"
-      local task_title="${BASH_REMATCH[2]}"
+    local task_id="" task_title="" task_status=""
+
+    # SpecClaw format: - [x] `T1` — Title
+    if [[ "$line" =~ ^-[[:space:]]+\[(.)\][[:space:]]+\`([Tt][0-9]+)\`[[:space:]]*[—–-][[:space:]]*(.*) ]]; then
+      local marker="${BASH_REMATCH[1]}"
+      task_id="${BASH_REMATCH[2]^^}"
+      task_title="${BASH_REMATCH[3]}"
+      case "$marker" in
+        x) task_status="complete" ;;
+        '~') task_status="in_progress" ;;
+        '!') task_status="failed" ;;
+        *) task_status="pending" ;;
+      esac
+    # Alt format: - **T1** — Title
+    elif [[ "$line" =~ ^-[[:space:]]+\*\*([Tt][0-9]+)\*\*[[:space:]]*[—:–-][[:space:]]*(.*) ]]; then
+      task_id="${BASH_REMATCH[1]^^}"
+      task_title="${BASH_REMATCH[2]}"
+      task_status="pending"
+    fi
+
+    if [[ -n "$task_id" ]]; then
       local wave_suffix=""
       [[ -n "$current_wave" ]] && wave_suffix=" (Wave $current_wave)"
 
@@ -475,13 +492,8 @@ build_updated_checklist() {
       local checkbox="[ ]"
       local suffix=""
 
-      # Check status from status.md map first
-      local status="${task_statuses[$task_id]:-}"
-
-      # Fall back to inline status in tasks.md
-      if [[ -z "$status" && "$line" =~ status:[[:space:]]*(pending|in_progress|complete|failed) ]]; then
-        status="${BASH_REMATCH[1]}"
-      fi
+      # Check status.md map first, then fall back to tasks.md marker
+      local status="${task_statuses[$task_id]:-$task_status}"
 
       case "$status" in
         complete)
