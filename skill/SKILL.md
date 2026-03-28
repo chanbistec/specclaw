@@ -32,7 +32,8 @@ When initialized (`.specclaw/` exists in project root):
     │   ├── tasks.md     # Ordered tasks with status markers
     │   ├── status.md    # Progress tracking
     │   ├── errors.md    # Build error journal (auto-generated on failures)
-    │   └── learnings.md # Build learnings (spec gaps, patterns, insights)
+    │   ├── learnings.md # Build learnings (spec gaps, patterns, insights)
+    │   └── verify-report.md # Verification results (auto-generated)
     └── archive/         # Completed changes
 ```
 
@@ -376,13 +377,61 @@ Pattern registry lives at `.specclaw/patterns.md` (global, not per-change).
 ### `specclaw verify <change>`
 **Trigger:** "specclaw verify", "validate implementation", "check against spec"
 
-1. Read `spec.md` acceptance criteria
-2. Check each criterion against the implementation
-3. Run tests if configured (`config.yaml test_command`)
-4. Generate verification report
-5. Update `status.md` with pass/fail per criterion
-6. If failures: suggest remediation tasks
-7. **GitHub sync** (if enabled): Run `bash skill/scripts/gh-sync.sh comment .specclaw <change> "<verification summary>"` to post results.
+Validate that the implementation satisfies the spec's acceptance criteria.
+
+#### Step 1: Collect Evidence
+
+Run `bash skill/scripts/verify.sh collect .specclaw <change>` to gather:
+- Acceptance criteria from spec.md
+- Current content of all changed files
+- Test/lint/build command results (if configured)
+
+#### Step 2: Build Verify Context
+
+Run `bash skill/scripts/verify-context.sh .specclaw <change>` to construct the verification agent's context payload from the evidence + Verify Agent prompt template.
+
+#### Step 3: Spawn Verify Agent
+
+Spawn a verification agent:
+```
+sessions_spawn(
+  task: <verify context payload>,
+  model: <config.yaml models.review>,  # default: anthropic/claude-sonnet-4-5
+  mode: "run",
+  label: "specclaw-verify-<change>"
+)
+```
+Wait for completion via `sessions_yield`.
+
+#### Step 4: Save Report
+
+Save the agent's output as `.specclaw/changes/<change>/verify-report.md`.
+
+#### Step 5: Update Status
+
+Run `bash skill/scripts/verify.sh update-status .specclaw <change> <verdict>` where verdict is PASS, FAIL, or PARTIAL (extracted from the report).
+
+Update status.md and run `bash skill/scripts/update-status.sh .specclaw` to refresh the dashboard.
+
+#### Step 6: GitHub Sync (if enabled)
+
+If `github.sync` is true, post verification summary as a comment:
+`bash skill/scripts/gh-sync.sh comment .specclaw <change> "<verdict summary>"`
+
+#### Step 7: Notify
+
+Send verification results via configured notification channel.
+
+#### Auto-Verify
+
+When `automation.auto_verify: true` in config.yaml, the build flow automatically triggers verification after a successful build (all tasks complete).
+
+#### Remediation
+
+If verdict is FAIL or PARTIAL:
+1. List the failed acceptance criteria
+2. Suggest creating remediation tasks (new tasks targeting the gaps)
+3. The user can re-plan just the failed criteria or manually fix and re-verify
 
 ### `specclaw status`
 **Trigger:** "specclaw status", "project status", "what's the progress"
