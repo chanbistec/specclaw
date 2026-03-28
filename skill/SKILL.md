@@ -70,25 +70,192 @@ The user triggers commands conversationally. Recognize these patterns:
 ### `specclaw build <change>`
 **Trigger:** "specclaw build", "implement the feature", "start building"
 
-**This is where OpenClaw shines:**
+**This is where OpenClaw shines.** Follow this execution flow exactly:
 
-1. Read `tasks.md` for the change
-2. For each task (or wave of independent tasks):
-   a. Prepare context: spec + design + task description + relevant source files
-   b. Spawn a coding agent via `sessions_spawn`:
-      ```
-      runtime: "acp" (or "subagent")
-      task: <context + task instructions>
-      model: <from config.yaml models.coding>
-      ```
-   c. Track progress in `status.md`
-   d. On completion, validate output
-3. After all tasks: run verification
-4. Notify user via configured channel
+#### Step 1 — Setup
 
-**Parallel execution:** Tasks without dependencies can be spawned simultaneously. Check `tasks.md` for dependency markers (`depends: [task-id]`).
+Run the setup script to parse config, create a git branch, and get build configuration:
 
-**Fresh context:** Each agent gets ONLY what it needs — no stale context from prior tasks. This is critical for quality.
+```bash
+bash skill/scripts/build.sh setup .specclaw <change_name>
+```
+
+This returns JSON config including `parallel_tasks`, `models.coding`, `git.strategy`, and `notifications.channel`. Capture this output — you'll need `parallel_tasks` and `model` values throughout the build.
+
+Send a **build started** notification:
+
+```
+🦞 **Build Started**
+**Change:** <change_name>
+**Branch:** specclaw/<change_name>
+**Tasks:** <total_count> across <wave_count> waves
+```
+
+#### Step 2 — Parse Tasks
+
+Get all actionable tasks:
+
+```bash
+bash skill/scripts/parse-tasks.sh --status pending .specclaw/changes/<change>/tasks.md
+```
+
+This outputs JSON: `[{"id": "T1", "title": "...", "wave": 1, "depends": [], "files": [...], "estimate": "small"}, ...]`
+
+**For retries** (re-running build on a change with prior failures):
+
+```bash
+bash skill/scripts/parse-tasks.sh --status failed .specclaw/changes/<change>/tasks.md
+```
+
+Reset failed tasks to pending before re-executing:
+
+```bash
+bash skill/scripts/update-task-status.sh .specclaw/changes/<change>/tasks.md <TASK_ID> pending
+```
+
+Then re-parse with `--status pending` and continue from the appropriate wave.
+
+#### Step 3 — Wave Loop
+
+Execute tasks wave-by-wave. For each wave number (1, 2, 3...):
+
+**a. Filter tasks for this wave:**
+
+```bash
+bash skill/scripts/parse-tasks.sh --wave N --status pending .specclaw/changes/<change>/tasks.md
+```
+
+If no tasks returned for this wave, the build is complete — skip to Step 4.
+
+**Skip waves with blocked tasks:** If a task's dependency failed in a prior wave, skip it and mark it failed:
+
+```bash
+bash skill/scripts/update-task-status.sh .specclaw/changes/<change>/tasks.md <TASK_ID> failed
+```
+
+**b. For each task in the wave** (up to `parallel_tasks` from config):
+
+1. **Mark in-progress:**
+   ```bash
+   bash skill/scripts/update-task-status.sh .specclaw/changes/<change>/tasks.md <TASK_ID> in_progress
+   ```
+
+2. **Build context payload:**
+   ```bash
+   bash skill/scripts/build-context.sh .specclaw <change> <TASK_ID>
+   ```
+   This outputs a complete context string containing: spec sections, design sections, task details, relevant source file contents, and constraints. Use this output directly as the agent's task.
+
+3. **Spawn coding agent:**
+   ```
+   sessions_spawn(
+     task: <output from build-context.sh>,
+     label: "specclaw-<change>-<task_id>",
+     mode: "run",
+     model: <models.coding from config>
+   )
+   ```
+
+**c. Yield and wait:**
+
+After spawning all tasks in the wave batch, call `sessions_yield` to wait for agent completions. Results auto-announce back to you.
+
+**d. Process completed agents:**
+
+For each agent that **succeeded**:
+
+1. Mark complete:
+   ```bash
+   bash skill/scripts/update-task-status.sh .specclaw/changes/<change>/tasks.md <TASK_ID> complete
+   ```
+
+2. Git commit the changes:
+   ```bash
+   bash skill/scripts/build.sh commit .specclaw <change> <TASK_ID> "<task_title>" <files...>
+   ```
+
+3. Send a **task complete** notification:
+   ```
+   ✅ **Task Complete:** <TASK_ID> — <task_title>
+   **Change:** <change_name> | **Wave:** <N>/<total_waves>
+   ```
+
+**e. Process failed agents:**
+
+For each agent that **failed**:
+
+1. Mark failed:
+   ```bash
+   bash skill/scripts/update-task-status.sh .specclaw/changes/<change>/tasks.md <TASK_ID> failed
+   ```
+
+2. Log the error in `status.md` with the failure reason
+
+3. Send a **task failed** notification:
+   ```
+   ❌ **Task Failed:** <TASK_ID> — <task_title>
+   **Change:** <change_name> | **Wave:** <N>/<total_waves>
+   **Error:** <brief failure reason>
+   ```
+
+4. Mark all dependent tasks in later waves as **skipped/failed** — they cannot proceed
+
+**f. Repeat** for the next wave number until no pending tasks remain.
+
+#### Step 4 — Finalize
+
+Run the finalize script to execute tests and merge the branch:
+
+```bash
+bash skill/scripts/build.sh finalize .specclaw <change_name>
+```
+
+This runs the configured `test_command` (if any) and merges the branch per `git.strategy`.
+
+#### Step 5 — Update Dashboard
+
+Regenerate the project status dashboard:
+
+```bash
+bash skill/scripts/update-status.sh .specclaw
+```
+
+#### Step 6 — Notify
+
+Send the **build summary** via the `message` tool to the configured notification channel:
+
+```
+🦞 **Build Complete**
+**Change:** <change_name>
+**Status:** <succeeded|partial|failed>
+**Tasks:** <completed>/<total> complete, <failed> failed, <skipped> skipped
+**Branch:** specclaw/<change_name> → merged to <target_branch>
+**Duration:** <elapsed time>
+```
+
+If any tasks failed, include a remediation section:
+
+```
+⚠️ **Failed Tasks:**
+- <TASK_ID>: <brief error> — re-run with `specclaw build <change>` to retry
+```
+
+#### Retry Flow
+
+When `specclaw build` is called on a change that has failed tasks:
+
+1. Parse failed tasks: `parse-tasks.sh --status failed`
+2. Reset each to pending: `update-task-status.sh ... pending`
+3. Re-parse pending tasks and determine which waves need re-execution
+4. Execute only the waves containing reset tasks (and their dependents)
+5. Finalize and notify as normal
+
+#### Key Principles
+
+- **Fresh context always** — each agent gets ONLY what it needs via `build-context.sh`. No stale context from prior tasks. This is critical for quality.
+- **Parallel within waves** — tasks in the same wave with no cross-dependencies spawn simultaneously, up to `parallel_tasks` limit.
+- **Sequential across waves** — wave N+1 starts only after wave N completes.
+- **Fail-fast on dependencies** — if a task fails, all tasks depending on it are immediately marked failed.
 
 ### `specclaw verify <change>`
 **Trigger:** "specclaw verify", "validate implementation", "check against spec"
@@ -163,28 +330,22 @@ Status markers:
 
 ## Agent Context Preparation
 
-When spawning a coding agent for a task, build the context payload as:
+Context construction is handled by the `build-context.sh` script:
 
+```bash
+bash skill/scripts/build-context.sh .specclaw <change> <TASK_ID>
 ```
-# Task: <task title>
 
-## Context
-<relevant sections from spec.md>
+The script automatically assembles a complete context payload containing:
 
-## Design
-<relevant sections from design.md>
+1. **Task header** — task ID, title, and estimate
+2. **Spec context** — relevant sections from `spec.md` (requirements, acceptance criteria)
+3. **Design context** — relevant sections from `design.md` (architecture, approach)
+4. **Task details** — full task description, file list, and dependencies from `tasks.md`
+5. **Source files** — current contents of files listed in the task's `Files:` field
+6. **Constraints** — standard rules (follow patterns, write tests, stay in scope)
 
-## Task Details
-<task description from tasks.md>
-
-## Files to Modify
-<list from task>
-
-## Constraints
-- Follow existing code patterns
-- Write tests for new functionality
-- Do not modify files outside the listed scope
-```
+The output is a single string ready to pass directly as the `task` parameter to `sessions_spawn`. Do not manually construct context — always use the script to ensure consistency and freshness.
 
 ## Configuration Reference
 
