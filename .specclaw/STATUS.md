@@ -1,20 +1,20 @@
 # 🦞 SpecClaw Dashboard
 
 **Project:** specclaw
-**Last Updated:** 2026-03-28 14:06 UTC
+**Last Updated:** 2026-03-28 14:24 UTC
 
 ## Active Changes
 
 
 - ✅ **build-engine** — 6/6 tasks (100%) | 0 failed
+- ✅ **build-error-journal** — 3/3 tasks (100%) | 0 failed
+- ✅ **learn-command** — 2/2 tasks (100%) | 0 failed
+- ✅ **pattern-detection** — 3/3 tasks (100%) | 0 failed
+- ✅ **post-build-review** — 1/1 tasks (100%) | 0 failed
 
 ## Pending Proposals
 
-
-- 📋 **build-error-journal** — proposal ready, awaiting planning
-- 📋 **learn-command** — proposal ready, awaiting planning
-- 📋 **pattern-detection** — proposal ready, awaiting planning
-- 📋 **post-build-review** — proposal ready, awaiting planning
+_None._
 
 ## Recently Completed
 
@@ -22,6 +22,6 @@ _None._
 
 ## Stats
 
-- **Total changes:** 1
-- **Active:** 1
+- **Total changes:** 5
+- **Active:** 5
 - **Completed:** 0
