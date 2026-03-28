@@ -23,6 +23,7 @@ When initialized (`.specclaw/` exists in project root):
 .specclaw/
 ├── config.yaml          # Project configuration
 ├── STATUS.md            # Project dashboard (auto-generated)
+├── patterns.md          # Recurring pattern registry (cross-change)
 └── changes/
     ├── <change-name>/
     │   ├── proposal.md  # Problem + solution + scope
@@ -260,6 +261,10 @@ For any files changed outside declared task scope, automatically log as `design_
 bash skill/scripts/log-learning.sh .specclaw <change> design_gap medium "File <path> modified but not declared in any task" "Review task file declarations for completeness"
 ```
 
+**d. Pattern scan:** Run `bash skill/scripts/detect-patterns.sh .specclaw scan <change>` to check for recurring patterns across changes.
+
+**e.** If any patterns have recurrence >= 3, alert the user: "⚠️ Pattern PAT-XXX has N occurrences — consider promoting its prevention rule to agent context."
+
 #### Step 6 — Update Dashboard
 
 Regenerate the project status dashboard:
@@ -337,6 +342,31 @@ bash skill/scripts/log-learning.sh .specclaw <change> --promote <id>
 - When an agent struggled with the context or instructions
 
 Learnings are stored in `.specclaw/changes/<change>/learnings.md` and feed into the pattern detection system for cross-change analysis.
+
+### `specclaw patterns`
+**Trigger:** "specclaw patterns", "check patterns", "recurring issues", "what keeps happening"
+
+Track recurring patterns across changes — errors and learnings that repeat become prevention rules.
+
+**Scan a change for patterns:**
+```bash
+bash skill/scripts/detect-patterns.sh .specclaw scan <change>
+```
+Reads errors.md and learnings.md, matches against existing patterns, creates new or increments existing.
+
+**List all patterns:**
+```bash
+bash skill/scripts/detect-patterns.sh .specclaw list [--min-recurrence N]
+```
+
+**Promote a pattern** (mark for elevation to agent prompts):
+```bash
+bash skill/scripts/detect-patterns.sh .specclaw promote <pat-id>
+```
+
+**Auto-promotion:** Patterns with 3+ occurrences are flagged ⚠️ — their prevention rules should be added to agent context templates or SKILL.md build instructions.
+
+Pattern registry lives at `.specclaw/patterns.md` (global, not per-change).
 
 ### `specclaw verify <change>`
 **Trigger:** "specclaw verify", "validate implementation", "check against spec"
