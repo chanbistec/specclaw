@@ -272,6 +272,56 @@ else
   FILE_LIST_FORMATTED="*No files specified*"
 fi
 
+# --- Error history for retries ---
+ERRORS_FILE="$CHANGE_DIR/errors.md"
+ERROR_HISTORY=""
+
+if [[ -f "$ERRORS_FILE" ]]; then
+  # Extract blocks for this task_id: from "## <TASK_ID>" line through "---"
+  # Take only the last 3 entries
+  TASK_ERRORS="$(awk -v tid="$TASK_ID" '
+    BEGIN { block=""; capturing=0 }
+    /^## / {
+      if (capturing) {
+        # End previous block (no trailing ---)
+        blocks[++n] = block
+        block = ""
+        capturing = 0
+      }
+      if ($2 == tid) {
+        capturing = 1
+        block = $0 "\n"
+        next
+      }
+    }
+    /^---$/ {
+      if (capturing) {
+        blocks[++n] = block
+        block = ""
+        capturing = 0
+        next
+      }
+    }
+    capturing { block = block $0 "\n" }
+    END {
+      if (capturing && block != "") blocks[++n] = block
+      # Output last 3 blocks
+      start = (n > 3) ? n - 2 : 1
+      for (i = start; i <= n; i++) {
+        printf "%s---\n", blocks[i]
+      }
+    }
+  ' "$ERRORS_FILE")"
+
+  if [[ -n "$TASK_ERRORS" ]]; then
+    ERROR_HISTORY="## Previous Errors for This Task
+
+The following errors occurred in previous attempts. **Avoid repeating these mistakes.**
+
+${TASK_ERRORS}"
+  fi
+fi
+
 # --- Build the prompt ---
 cat <<PROMPT
 You are a coding agent implementing a specific task in the project "${PROJECT_NAME}".
@@ -292,6 +342,7 @@ ${DESIGN_CONTENT}
 ## Existing Code
 ${EXISTING_CODE}
 
+${ERROR_HISTORY}
 ## Constraints
 1. ONLY modify/create the files listed above
 2. Follow existing code style and patterns
