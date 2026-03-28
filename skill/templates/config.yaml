@@ -51,6 +51,10 @@ github:
   token: ""                      # GitHub PAT for curl fallback (not needed if gh CLI is authed)
   label: "specclaw"              # Label applied to SpecClaw issues
 
+# Workflow enforcement
+workflow:
+  strict: true                     # Enforce phase prerequisites (disable for rapid prototyping)
+
 # Automation
 automation:
   auto_mode: false

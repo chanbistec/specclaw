@@ -58,25 +58,30 @@ The user triggers commands conversationally. Recognize these patterns:
 3. Include: problem statement, proposed solution, scope, impact, open questions
 4. Present proposal to user for review
 5. Update `STATUS.md`
-6. **GitHub sync** (if `github.sync` is true): Run `bash skill/scripts/gh-sync.sh create .specclaw <change>` to create a GitHub Issue for the proposal.
+6. **GitHub sync** (if `github.sync` is true): Run `bash skill/scripts/gh-sync.sh create .specclaw <change>` to create a GitHub Issue for the proposal. (gh-sync.sh create requires proposal.md — validation is enforced by validate-change.sh.)
 
 ### `specclaw plan <change>`
 **Trigger:** "specclaw plan", "plan the feature", "generate spec for"
 
-1. Read the proposal
-2. Analyze existing codebase (file structure, patterns, dependencies)
-3. Generate:
+1. **Validate:** Run `bash skill/scripts/validate-change.sh .specclaw <change> plan`. If it fails, report missing prerequisites and stop.
+2. Read the proposal
+3. Analyze existing codebase (file structure, patterns, dependencies)
+4. Generate:
    - `spec.md` — functional requirements, acceptance criteria, edge cases
    - `design.md` — technical approach, architecture, file changes map
    - `tasks.md` — ordered implementation tasks with dependencies
-4. Present plan summary to user
-5. Update status
-6. **GitHub sync** (if enabled): Run `bash skill/scripts/gh-sync.sh update .specclaw <change>` to add the task checklist to the GitHub Issue.
+5. Present plan summary to user
+6. Update status
+7. **GitHub sync** (if enabled): Run `bash skill/scripts/gh-sync.sh update .specclaw <change>` to add the task checklist to the GitHub Issue.
 
 ### `specclaw build <change>`
 **Trigger:** "specclaw build", "implement the feature", "start building"
 
 **This is where OpenClaw shines.** Follow this execution flow exactly:
+
+#### Step 0 — Validate
+
+Run `bash skill/scripts/validate-change.sh .specclaw <change> build`. If it fails, report missing prerequisites and stop.
 
 #### Step 1 — Setup
 
@@ -383,6 +388,10 @@ Pattern registry lives at `.specclaw/patterns.md` (global, not per-change).
 
 Validate that the implementation satisfies the spec's acceptance criteria.
 
+#### Step 0: Validate
+
+Run `bash skill/scripts/validate-change.sh .specclaw <change> verify`. If it fails (tasks not all complete), report and stop.
+
 #### Step 1: Collect Evidence
 
 Run `bash skill/scripts/verify.sh collect .specclaw <change>` to gather:
@@ -440,6 +449,8 @@ If verdict is FAIL or PARTIAL:
 ### `specclaw status`
 **Trigger:** "specclaw status", "project status", "what's the progress"
 
+For a specific change: `bash skill/scripts/validate-change.sh .specclaw <change> status`
+
 1. Read all changes in `.specclaw/changes/`
 2. Compile dashboard showing:
    - Active changes with progress %
@@ -451,11 +462,12 @@ If verdict is FAIL or PARTIAL:
 ### `specclaw archive <change>`
 **Trigger:** "specclaw archive", "mark as done", "archive the change"
 
-1. Verify change is complete (all tasks done, verification passed)
-2. Move to `.specclaw/changes/archive/YYYY-MM-DD-<change-name>/`
-3. Update `STATUS.md`
-4. **GitHub sync** (if enabled): Run `bash skill/scripts/gh-sync.sh close .specclaw <change>` to close the issue.
-5. Optionally create git tag
+1. **Validate:** Run `bash skill/scripts/validate-change.sh .specclaw <change> archive`. If it fails, report and stop.
+2. Verify change is complete (all tasks done, verification passed)
+3. Move to `.specclaw/changes/archive/YYYY-MM-DD-<change-name>/`
+4. Update `STATUS.md`
+5. **GitHub sync** (if enabled): Run `bash skill/scripts/gh-sync.sh close .specclaw <change>` to close the issue.
+6. Optionally create git tag
 
 ### `specclaw auto`
 **Trigger:** "specclaw auto", "autonomous mode", "auto-build"
