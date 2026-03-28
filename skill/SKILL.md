@@ -29,7 +29,8 @@ When initialized (`.specclaw/` exists in project root):
     │   ├── spec.md      # Requirements + acceptance criteria
     │   ├── design.md    # Technical approach + file map
     │   ├── tasks.md     # Ordered tasks with status markers
-    │   └── status.md    # Progress tracking
+    │   ├── status.md    # Progress tracking
+    │   └── errors.md    # Build error journal (auto-generated on failures)
     └── archive/         # Completed changes
 ```
 
@@ -169,6 +170,8 @@ For each agent that **succeeded**:
    bash skill/scripts/update-task-status.sh .specclaw/changes/<change>/tasks.md <TASK_ID> complete
    ```
 
+   If this task previously failed (was `[!]` before): Run `bash skill/scripts/log-error.sh .specclaw <change> --resolve <task_id>`
+
 2. Git commit the changes:
    ```bash
    bash skill/scripts/build.sh commit .specclaw <change> <TASK_ID> "<task_title>" <files...>
@@ -189,16 +192,18 @@ For each agent that **failed**:
    bash skill/scripts/update-task-status.sh .specclaw/changes/<change>/tasks.md <TASK_ID> failed
    ```
 
-2. Log the error in `status.md` with the failure reason
+2. **Log error:** Run `bash skill/scripts/log-error.sh .specclaw <change> <task_id> <wave> <agent_label> "<failure summary>"` — pipe agent error output if available
 
-3. Send a **task failed** notification:
+3. Log the error in `status.md` with the failure reason
+
+4. Send a **task failed** notification:
    ```
    ❌ **Task Failed:** <TASK_ID> — <task_title>
    **Change:** <change_name> | **Wave:** <N>/<total_waves>
    **Error:** <brief failure reason>
    ```
 
-4. Mark all dependent tasks in later waves as **skipped/failed** — they cannot proceed
+5. Mark all dependent tasks in later waves as **skipped/failed** — they cannot proceed
 
 **f. Repeat** for the next wave number until no pending tasks remain.
 
@@ -248,6 +253,7 @@ When `specclaw build` is called on a change that has failed tasks:
 2. Reset each to pending: `update-task-status.sh ... pending`
 3. Re-parse pending tasks and determine which waves need re-execution
 4. Execute only the waves containing reset tasks (and their dependents)
+   - Retried tasks automatically get previous error context via `build-context.sh`
 5. Finalize and notify as normal
 
 #### Key Principles
