@@ -57,6 +57,7 @@ The user triggers commands conversationally. Recognize these patterns:
 3. Include: problem statement, proposed solution, scope, impact, open questions
 4. Present proposal to user for review
 5. Update `STATUS.md`
+6. **GitHub sync** (if `github.sync` is true): Run `bash skill/scripts/gh-sync.sh create .specclaw <change>` to create a GitHub Issue for the proposal.
 
 ### `specclaw plan <change>`
 **Trigger:** "specclaw plan", "plan the feature", "generate spec for"
@@ -69,6 +70,7 @@ The user triggers commands conversationally. Recognize these patterns:
    - `tasks.md` — ordered implementation tasks with dependencies
 4. Present plan summary to user
 5. Update status
+6. **GitHub sync** (if enabled): Run `bash skill/scripts/gh-sync.sh update .specclaw <change>` to add the task checklist to the GitHub Issue.
 
 ### `specclaw build <change>`
 **Trigger:** "specclaw build", "implement the feature", "start building"
@@ -206,8 +208,11 @@ For each agent that **failed**:
    ```
 
 5. Mark all dependent tasks in later waves as **skipped/failed** — they cannot proceed
+6. **GitHub sync** (if enabled): Run `bash skill/scripts/gh-sync.sh comment .specclaw <change> "❌ Task <task_id> failed: <summary>"` to log the error on the issue.
 
-**f. Repeat** for the next wave number until no pending tasks remain.
+**f. GitHub sync** (if enabled): Run `bash skill/scripts/gh-sync.sh update .specclaw <change>` to update task checkboxes.
+
+**g. Repeat** for the next wave number until no pending tasks remain.
 
 #### Step 4 — Finalize
 
@@ -377,6 +382,7 @@ Pattern registry lives at `.specclaw/patterns.md` (global, not per-change).
 4. Generate verification report
 5. Update `status.md` with pass/fail per criterion
 6. If failures: suggest remediation tasks
+7. **GitHub sync** (if enabled): Run `bash skill/scripts/gh-sync.sh comment .specclaw <change> "<verification summary>"` to post results.
 
 ### `specclaw status`
 **Trigger:** "specclaw status", "project status", "what's the progress"
@@ -395,7 +401,8 @@ Pattern registry lives at `.specclaw/patterns.md` (global, not per-change).
 1. Verify change is complete (all tasks done, verification passed)
 2. Move to `.specclaw/changes/archive/YYYY-MM-DD-<change-name>/`
 3. Update `STATUS.md`
-4. Optionally create git tag
+4. **GitHub sync** (if enabled): Run `bash skill/scripts/gh-sync.sh close .specclaw <change>` to close the issue.
+5. Optionally create git tag
 
 ### `specclaw auto`
 **Trigger:** "specclaw auto", "autonomous mode", "auto-build"
@@ -477,3 +484,9 @@ Key settings:
 3. **Wave-based execution** — group independent tasks, respect dependencies
 4. **Fresh context always** — never let agents accumulate stale context
 5. **Verify early** — run verification after each wave, not just at the end
+
+### GitHub Integration (Optional)
+
+When `github.sync: true` in config.yaml, SpecClaw creates a GitHub Issue per change and tracks progress as a task checklist. Requires `gh` CLI (authenticated) or `GITHUB_TOKEN` environment variable.
+
+Run `bash skill/scripts/gh-sync.sh setup` to verify auth and create labels.
