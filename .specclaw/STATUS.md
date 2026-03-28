@@ -1,7 +1,7 @@
 # 🦞 SpecClaw Dashboard
 
 **Project:** specclaw
-**Last Updated:** 2026-03-28 14:24 UTC
+**Last Updated:** 2026-03-28 14:28 UTC
 
 ## Active Changes
 
@@ -14,7 +14,8 @@
 
 ## Pending Proposals
 
-_None._
+
+- 📋 **github-issues-sync** — proposal ready, awaiting planning
 
 ## Recently Completed
 
