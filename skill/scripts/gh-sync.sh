@@ -101,34 +101,56 @@ json_escape() {
 detect_auth() {
   local config_file="${1:-}"
 
-  # 1. gh CLI available and authed?
+  # Collect all available auth methods, then verify in order
+  # This ensures fallback if a token is expired/invalid
+
+  # Try GITHUB_TOKEN env first (most explicit)
+  if [[ -n "${GITHUB_TOKEN:-}" ]]; then
+    if _verify_token "$GITHUB_TOKEN"; then
+      AUTH_METHOD="curl"
+      TOKEN="$GITHUB_TOKEN"
+      return 0
+    else
+      warn "GITHUB_TOKEN is set but failed auth check — trying fallbacks"
+    fi
+  fi
+
+  # Try config.yaml github.token
+  if [[ -n "$config_file" && -f "$config_file" ]]; then
+    local cfg_token
+    cfg_token="$(yaml_val "$config_file" "github.token")"
+    if [[ -n "$cfg_token" ]]; then
+      if _verify_token "$cfg_token"; then
+        AUTH_METHOD="curl"
+        TOKEN="$cfg_token"
+        return 0
+      else
+        warn "config.yaml github.token failed auth check — trying fallbacks"
+      fi
+    fi
+  fi
+
+  # Try gh CLI (fallback)
   if command -v gh &>/dev/null && gh auth status &>/dev/null; then
     AUTH_METHOD="gh"
     return 0
   fi
 
-  # 2. GITHUB_TOKEN env var?
-  if [[ -n "${GITHUB_TOKEN:-}" ]]; then
-    AUTH_METHOD="curl"
-    TOKEN="$GITHUB_TOKEN"
-    return 0
-  fi
+  die "No working GitHub auth found. Either:
+  1. Set GITHUB_TOKEN environment variable (with a valid PAT)
+  2. Add github.token to config.yaml
+  3. Install and auth gh CLI: gh auth login"
+}
 
-  # 3. config.yaml github.token?
-  if [[ -n "$config_file" && -f "$config_file" ]]; then
-    local cfg_token
-    cfg_token="$(yaml_val "$config_file" "github.token")"
-    if [[ -n "$cfg_token" ]]; then
-      AUTH_METHOD="curl"
-      TOKEN="$cfg_token"
-      return 0
-    fi
-  fi
-
-  die "No GitHub auth found. Either:
-  1. Install and auth gh CLI: gh auth login
-  2. Set GITHUB_TOKEN environment variable
-  3. Add github.token to config.yaml"
+# Verify a GitHub token works by hitting /user endpoint
+_verify_token() {
+  local token="$1"
+  local http_code
+  http_code="$(curl -s -w '%{http_code}' -o /dev/null \
+    "https://api.github.com/user" \
+    -H "Authorization: token $token" \
+    -H "Accept: application/vnd.github.v3+json" 2>/dev/null)" || true
+  [[ "$http_code" -lt 400 ]]
 }
 
 # ─── Repo Detection ──────────────────────────────────────────────────────────

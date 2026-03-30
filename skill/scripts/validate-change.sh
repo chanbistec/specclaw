@@ -228,8 +228,36 @@ if [[ "$PHASE" == "status" ]]; then
     echo "  ❌ learnings.md"
   fi
 
+  # GitHub Issue (if sync configured)
+  if [[ -f "$CONFIG_FILE" ]]; then
+    gh_sync_val="$(yaml_val "$CONFIG_FILE" "github.sync")"
+    if [[ "$gh_sync_val" == "true" ]]; then
+      if [[ -f "$CHANGE_DIR/status.md" ]] && grep -q "GitHub Issue" "$CHANGE_DIR/status.md" 2>/dev/null; then
+        issue_num="$(grep "GitHub Issue" "$CHANGE_DIR/status.md" | grep -o '#[0-9]*' | head -1)"
+        echo "  ✅ GitHub Issue ($issue_num)"
+      else
+        echo "  ❌ GitHub Issue (sync enabled, not created)"
+      fi
+    fi
+  fi
+
   exit 0
 fi
+
+# --- GitHub issue check helper ---
+_check_github_issue() {
+  if [[ -f "$CONFIG_FILE" ]]; then
+    local gh_sync
+    gh_sync="$(yaml_val "$CONFIG_FILE" "github.sync")"
+    if [[ "$gh_sync" == "true" ]]; then
+      if [[ -f "$CHANGE_DIR/status.md" ]] && grep -q "GitHub Issue" "$CHANGE_DIR/status.md" 2>/dev/null; then
+        : # issue exists
+      else
+        fail "GitHub sync is enabled but no issue created — run gh-sync.sh create first"
+      fi
+    fi
+  fi
+}
 
 # --- Phase validation ---
 case "$PHASE" in
@@ -243,6 +271,8 @@ case "$PHASE" in
     if [[ ! -f "$CHANGE_DIR/proposal.md" ]]; then
       fail "Missing proposal.md — run specclaw propose first"
     fi
+    # Enforce GitHub issue if sync is configured
+    _check_github_issue
     ;;
 
   build)
@@ -255,6 +285,8 @@ case "$PHASE" in
     if [[ ! -f "$CHANGE_DIR/tasks.md" ]]; then
       fail "Missing tasks.md — run specclaw plan first"
     fi
+    # Enforce GitHub issue if sync is configured
+    _check_github_issue
     ;;
 
   verify)
